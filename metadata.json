@@ -1,0 +1,6 @@
+{
+  "name": "PrensaStudio - Maquetador Editorial",
+  "description": "Aplicación profesional para maquetaje y diseño de periódico digital con arrastre de elementos, gestión de tipografías, exportación en PDF profesional, colaboración en tiempo real, historial de versiones y maquetas exportables.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

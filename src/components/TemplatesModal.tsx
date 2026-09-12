@@ -1,0 +1,218 @@
+import React, { useRef } from 'react';
+import { TemplatePreset, NewspaperProject } from '../types';
+import { TEMPLATES } from '../data/templates';
+import { 
+  LayoutTemplate, 
+  Download, 
+  Upload, 
+  Copy, 
+  X, 
+  Sparkles, 
+  FileCheck,
+  ArrowRight
+} from 'lucide-react';
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  currentProject: NewspaperProject;
+  onLoadTemplate: (template: NewspaperProject) => void;
+  onImportCustomTemplate: (imported: NewspaperProject) => void;
+}
+
+export const TemplatesModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  currentProject,
+  onLoadTemplate,
+  onImportCustomTemplate
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!isOpen) return null;
+
+  // Export current project as downloadable JSON template
+  const handleExportCurrent = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(currentProject, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute(
+      'download',
+      `Plantilla_${currentProject.title.replace(/\s+/g, '_')}.prensastudio.json`
+    );
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Export a preset template as downloadable JSON
+  const handleExportPreset = (preset: TemplatePreset) => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(preset.project, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `Plantilla_${preset.id}.prensastudio.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Import JSON file
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (json && json.elements && Array.isArray(json.elements)) {
+          onImportCustomTemplate(json);
+          onClose();
+        } else {
+          alert('El archivo no contiene un formato de maqueta PrensaStudio válido.');
+        }
+      } catch (err) {
+        alert('Error al leer el archivo JSON de maqueta.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 p-4 select-none animate-in fade-in duration-150">
+      <div className="bg-[#1f1f23] border border-[#373744] rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden text-neutral-200">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2d2d34] bg-[#18181b]">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded bg-blue-500/10 text-blue-400">
+              <LayoutTemplate className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-white">Catálogo de Maquetas y Plantillas</h2>
+              <p className="text-[11px] text-neutral-400">
+                Selecciona una maqueta prediseñada, cópiala para editarla o exporta tus propios diseños en formato reutilizable.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCurrent}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs hover:bg-emerald-600/30 transition-colors font-medium"
+              title="Descarga la maqueta abierta como archivo de plantilla JSON"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Exportar Maqueta Actual</span>
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a2a32] text-neutral-200 border border-[#373744] text-xs hover:bg-[#34343e] transition-colors font-medium"
+              title="Cargar una plantilla desde tu ordenador"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Importar Plantilla</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileImport}
+              className="hidden"
+            />
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-[#2d2d34] transition-colors ml-2"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body: Template Cards Grid */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {TEMPLATES.map((tpl) => (
+              <div
+                key={tpl.id}
+                className="rounded-xl bg-[#24242b] border border-[#373744] hover:border-blue-500/50 p-4 flex flex-col justify-between transition-all group shadow-sm"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        {tpl.tag}
+                      </span>
+                      <h3 className="text-sm font-bold text-white mt-1.5 leading-snug group-hover:text-blue-400 transition-colors">
+                        {tpl.name}
+                      </h3>
+                    </div>
+
+                    <div
+                      className="w-4 h-4 rounded-full border border-white/20 shrink-0"
+                      style={{ backgroundColor: tpl.thumbnailColor }}
+                    />
+                  </div>
+
+                  <p className="text-xs text-neutral-400 leading-relaxed font-serif mb-4">
+                    {tpl.description}
+                  </p>
+
+                  <div className="flex items-center gap-3 text-[11px] font-mono text-neutral-400 pb-3 border-b border-[#2d2d34]">
+                    <span>Dimensiones: {tpl.project.width}×{tpl.project.height}px</span>
+                    <span>•</span>
+                    <span>{tpl.project.gridColumns} columnas</span>
+                    <span>•</span>
+                    <span>{tpl.project.elements.length} elementos</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 mt-4 pt-1">
+                  <button
+                    onClick={() => handleExportPreset(tpl)}
+                    className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white py-1.5 px-2 rounded hover:bg-[#2d2d36] transition-colors"
+                    title="Exportar archivo de plantilla JSON"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Descargar JSON</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        // Duplicate with new ID
+                        const clone = JSON.parse(JSON.stringify(tpl.project));
+                        clone.id = `project-${Date.now()}`;
+                        clone.title = `${tpl.project.title} (Copia)`;
+                        onLoadTemplate(clone);
+                        onClose();
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2e2e38] hover:bg-[#383844] text-xs font-medium text-neutral-200 transition-colors"
+                      title="Copiar y abrir para editar sin alterar la plantilla original"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copiar y Editar</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        onLoadTemplate(tpl.project);
+                        onClose();
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white transition-colors shadow-xs"
+                      title="Cargar esta maqueta en el lienzo"
+                    >
+                      <span>Abrir</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
