@@ -85,6 +85,160 @@ app.post('/api/rooms/:roomId/versions', (req, res) => {
   res.json({ success: true, version: newVersion });
 });
 
+// Editorial Workflow & Latitud18 Publishing Endpoints (Compatible with Laravel/CMS API)
+const editionsStore = new Map<string, any>();
+
+app.get('/api/editions', (req, res) => {
+  const list = Array.from(editionsStore.values());
+  res.json({ success: true, editions: list });
+});
+
+app.post('/api/editions', (req, res) => {
+  const { id, title, design, status, assignedReviewer, scheduledAt, domain } = req.body;
+  const editionId = id || 'ed-' + Date.now();
+  const edition = {
+    id: editionId,
+    title: title || 'Edición Digital Latitud 18',
+    status: status || 'draft',
+    domain: domain || 'latitud18.ultimahora-tv.com',
+    assignedReviewer: assignedReviewer || 'Editor en Jefe',
+    scheduledAt: scheduledAt || null,
+    publishedAt: null,
+    publishedUrl: null,
+    design: design || {},
+    updatedAt: Date.now(),
+    history: [
+      {
+        id: 'hist-' + Date.now(),
+        fromStatus: null,
+        toStatus: status || 'draft',
+        user: req.body.user || 'Periodista',
+        timestamp: Date.now(),
+        comment: 'Creación de borrador de edición'
+      }
+    ]
+  };
+  editionsStore.set(editionId, edition);
+  res.json({ success: true, edition });
+});
+
+app.put('/api/editions/:id/status', (req, res) => {
+  const { id } = req.params;
+  const { status, user, comment, scheduledAt } = req.body;
+  
+  let edition = editionsStore.get(id);
+  if (!edition) {
+    edition = {
+      id,
+      title: req.body.title || 'Edición Digital',
+      status: 'draft',
+      domain: 'latitud18.ultimahora-tv.com',
+      history: []
+    };
+  }
+
+  const previousStatus = edition.status;
+  edition.status = status;
+  edition.updatedAt = Date.now();
+  if (scheduledAt) {
+    edition.scheduledAt = scheduledAt;
+  }
+  if (status === 'published') {
+    edition.publishedAt = Date.now();
+    const slug = (edition.title || 'edicion-especial').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    edition.publishedUrl = `https://latitud18.ultimahora-tv.com/edicion-digital/${slug}-${Date.now().toString().slice(-4)}`;
+  }
+
+  edition.history = edition.history || [];
+  edition.history.unshift({
+    id: 'hist-' + Date.now(),
+    fromStatus: previousStatus,
+    toStatus: status,
+    user: user || 'Redacción Latitud 18',
+    timestamp: Date.now(),
+    comment: comment || `Cambio de estado editorial a ${status}`
+  });
+
+  editionsStore.set(id, edition);
+
+  // Broadcast workflow status update to active collaborative rooms
+  for (const room of rooms.values()) {
+    broadcastToRoom(room, null, {
+      type: 'editorial:status_changed',
+      editionId: id,
+      status: edition.status,
+      publishedUrl: edition.publishedUrl,
+      scheduledAt: edition.scheduledAt,
+      history: edition.history
+    });
+  }
+
+  res.json({ success: true, edition });
+});
+
+app.post('/api/editions/:id/publish', (req, res) => {
+  const { id } = req.params;
+  const { user, title, projectData } = req.body;
+
+  let edition = editionsStore.get(id) || { id, history: [] };
+  const previousStatus = edition.status;
+  edition.status = 'published';
+  edition.publishedAt = Date.now();
+  edition.title = title || edition.title || 'Edición Digital Latitud 18';
+  
+  const slug = edition.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  edition.publishedUrl = `https://latitud18.ultimahora-tv.com/edicion-digital/${slug}-${Date.now().toString().slice(-4)}`;
+
+  edition.history = edition.history || [];
+  edition.history.unshift({
+    id: 'hist-' + Date.now(),
+    fromStatus: previousStatus,
+    toStatus: 'published',
+    user: user || 'Director Editorial',
+    timestamp: Date.now(),
+    comment: 'Publicación automática aprobada y desplegada en latitud18.ultimahora-tv.com'
+  });
+
+  editionsStore.set(id, edition);
+
+  // Broadcast to all active collaboration clients
+  for (const room of rooms.values()) {
+    if (room.project) {
+      room.project.status = 'published';
+      room.project.publishedUrl = edition.publishedUrl;
+      room.project.publishedAt = edition.publishedAt;
+    }
+    broadcastToRoom(room, null, {
+      type: 'editorial:published',
+      editionId: id,
+      publishedUrl: edition.publishedUrl,
+      publishedAt: edition.publishedAt,
+      title: edition.title,
+      user
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Edición publicada con éxito en latitud18.ultimahora-tv.com',
+    publishedUrl: edition.publishedUrl,
+    edition
+  });
+});
+
+app.post('/api/templates/import', (req, res) => {
+  const { templatePackage } = req.body;
+  if (!templatePackage || !templatePackage.project) {
+    return res.status(400).json({ error: 'Formato de plantilla .latitud-template inválido.' });
+  }
+
+  res.json({
+    success: true,
+    message: 'Plantilla Latitud 18 importada correctamente en el CMS',
+    project: templatePackage.project
+  });
+});
+
 // Broadcast helper
 function broadcastToRoom(room: RoomData, senderWs: WebSocket | null, payload: any) {
   const message = JSON.stringify(payload);

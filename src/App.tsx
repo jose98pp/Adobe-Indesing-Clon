@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { NewspaperProject, NewspaperElement } from './types';
+import { NewspaperProject, NewspaperElement, EditorialPage } from './types';
 import { TEMPLATES } from './data/templates';
 import { useCollaboration } from './hooks/useCollaboration';
 import { Header } from './components/Header';
@@ -9,14 +9,21 @@ import { Canvas } from './components/Canvas';
 import { VersionHistoryModal } from './components/VersionHistoryModal';
 import { TemplatesModal } from './components/TemplatesModal';
 import { PdfExportModal } from './components/PdfExportModal';
+import { EditorialWorkflowModal } from './components/EditorialWorkflowModal';
+import { PageNavigator } from './components/PageNavigator';
 import { Bell, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   // Current editorial project
   const [project, setProject] = useState<NewspaperProject>(() => {
-    return JSON.parse(JSON.stringify(TEMPLATES[0].project));
+    const initial = JSON.parse(JSON.stringify(TEMPLATES[0].project));
+    if (initial.pages && initial.pages[0] && (!initial.pages[0].elements || initial.pages[0].elements.length === 0)) {
+      initial.pages[0].elements = initial.elements || [];
+    }
+    return initial;
   });
 
+  const [activePageIndex, setActivePageIndex] = useState<number>(0);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<number>(0.8);
   const [showGrid, setShowGrid] = useState<boolean>(true);
@@ -32,6 +39,7 @@ export default function App() {
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isPdfExportOpen, setIsPdfExportOpen] = useState(false);
+  const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
 
   // Notification toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -43,6 +51,19 @@ export default function App() {
     }, 4000);
   }, []);
 
+  // Ensure pages array is consistent
+  const currentPages: EditorialPage[] = project.pages && project.pages.length > 0 
+    ? project.pages 
+    : [
+        {
+          id: 'p-1',
+          pageNumber: 1,
+          title: 'Portada',
+          section: 'Portada',
+          elements: project.elements
+        }
+      ];
+
   // Remote updates handler
   const handleRemoteUpdate = useCallback((remoteProject: NewspaperProject) => {
     setProject(remoteProject);
@@ -50,6 +71,7 @@ export default function App() {
 
   const handleVersionRestored = useCallback((restoredProject: NewspaperProject, author?: string) => {
     setProject(restoredProject);
+    setActivePageIndex(0);
     showToast(`Versión restaurada con éxito ${author ? `por ${author}` : ''}`);
   }, [showToast]);
 
@@ -79,6 +101,131 @@ export default function App() {
     setProject(newProject);
     sendDocumentUpdate(newProject);
   }, [project, sendDocumentUpdate]);
+
+  // Page switching logic
+  const handleSelectPage = useCallback((newIndex: number) => {
+    if (newIndex === activePageIndex) return;
+    if (!project.pages || project.pages.length === 0) return;
+
+    // Save active elements to current page slot
+    const updatedPages = [...project.pages];
+    updatedPages[activePageIndex] = {
+      ...updatedPages[activePageIndex],
+      elements: project.elements
+    };
+
+    const targetPage = updatedPages[newIndex];
+    if (!targetPage) return;
+
+    const updatedProject: NewspaperProject = {
+      ...project,
+      pages: updatedPages,
+      elements: targetPage.elements || []
+    };
+
+    setActivePageIndex(newIndex);
+    setSelectedElementId(null);
+    commitProjectChange(updatedProject);
+    showToast(`Página ${newIndex + 1}: ${targetPage.section || targetPage.title || 'General'}`);
+  }, [activePageIndex, project, commitProjectChange, showToast]);
+
+  const handleAddPage = useCallback(() => {
+    const existing = project.pages || [];
+    const newPageNum = existing.length + 1;
+    const newPage: EditorialPage = {
+      id: `p-${Date.now()}`,
+      pageNumber: newPageNum,
+      title: `Página ${newPageNum}`,
+      section: newPageNum === 2 ? 'Opinión' : newPageNum === 3 ? 'Economía' : 'Actualidad',
+      elements: []
+    };
+
+    const updatedPages = [...existing];
+    // Save current elements
+    if (updatedPages[activePageIndex]) {
+      updatedPages[activePageIndex] = {
+        ...updatedPages[activePageIndex],
+        elements: project.elements
+      };
+    }
+    updatedPages.push(newPage);
+
+    const updatedProject: NewspaperProject = {
+      ...project,
+      pages: updatedPages,
+      elements: []
+    };
+
+    setActivePageIndex(updatedPages.length - 1);
+    setSelectedElementId(null);
+    commitProjectChange(updatedProject);
+    showToast(`Página ${newPageNum} creada.`);
+  }, [project, activePageIndex, commitProjectChange, showToast]);
+
+  const handleDuplicatePage = useCallback((indexToDuplicate: number) => {
+    const existing = project.pages || [];
+    const target = existing[indexToDuplicate];
+    if (!target) return;
+
+    const clonedElements: NewspaperElement[] = (indexToDuplicate === activePageIndex ? project.elements : target.elements).map(
+      (el) => ({
+        ...JSON.parse(JSON.stringify(el)),
+        id: `el-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
+      })
+    );
+
+    const newPage: EditorialPage = {
+      id: `p-${Date.now()}`,
+      pageNumber: existing.length + 1,
+      title: `${target.title} (Copia)`,
+      section: target.section,
+      elements: clonedElements
+    };
+
+    const updatedPages = [...existing];
+    if (updatedPages[activePageIndex]) {
+      updatedPages[activePageIndex] = {
+        ...updatedPages[activePageIndex],
+        elements: project.elements
+      };
+    }
+    updatedPages.push(newPage);
+
+    const updatedProject: NewspaperProject = {
+      ...project,
+      pages: updatedPages,
+      elements: clonedElements
+    };
+
+    setActivePageIndex(updatedPages.length - 1);
+    setSelectedElementId(null);
+    commitProjectChange(updatedProject);
+    showToast(`Página duplicada con éxito.`);
+  }, [project, activePageIndex, commitProjectChange, showToast]);
+
+  const handleDeletePage = useCallback((indexToDelete: number) => {
+    const existing = project.pages || [];
+    if (existing.length <= 1) return;
+
+    const updatedPages = existing.filter((_, idx) => idx !== indexToDelete).map((p, idx) => ({
+      ...p,
+      pageNumber: idx + 1
+    }));
+
+    const nextIndex = Math.max(0, Math.min(indexToDelete, updatedPages.length - 1));
+    const nextElements = updatedPages[nextIndex]?.elements || [];
+
+    const updatedProject: NewspaperProject = {
+      ...project,
+      pages: updatedPages,
+      elements: nextElements
+    };
+
+    setActivePageIndex(nextIndex);
+    setSelectedElementId(null);
+    commitProjectChange(updatedProject);
+    showToast(`Página eliminada.`);
+  }, [project, commitProjectChange, showToast]);
 
   // Undo / Redo
   const handleUndo = useCallback(() => {
@@ -196,6 +343,42 @@ export default function App() {
     commitProjectChange(updatedProject);
   }, [project, commitProjectChange]);
 
+  const handleReorderElements = useCallback((newElements: NewspaperElement[]) => {
+    const reindexed = newElements.map((el, i) => ({ ...el, zIndex: i + 1 }));
+    const updatedProject: NewspaperProject = {
+      ...project,
+      elements: reindexed
+    };
+    commitProjectChange(updatedProject);
+  }, [project, commitProjectChange]);
+
+  const handleToggleLock = useCallback((id: string) => {
+    const target = project.elements.find(el => el.id === id);
+    if (!target) return;
+    const isNowLocked = !target.locked;
+    const updatedProject: NewspaperProject = {
+      ...project,
+      elements: project.elements.map(el => (el.id === id ? { ...el, locked: isNowLocked } : el))
+    };
+    commitProjectChange(updatedProject);
+    showToast(isNowLocked ? 'Capa bloqueada para evitar movimientos accidentales.' : 'Capa desbloqueada.');
+  }, [project, commitProjectChange, showToast]);
+
+  const handleToggleVisibility = useCallback((id: string) => {
+    const target = project.elements.find(el => el.id === id);
+    if (!target) return;
+    const isNowHidden = !target.hidden;
+    const updatedProject: NewspaperProject = {
+      ...project,
+      elements: project.elements.map(el => (el.id === id ? { ...el, hidden: isNowHidden } : el))
+    };
+    if (isNowHidden && selectedElementId === id) {
+      setSelectedElementId(null);
+    }
+    commitProjectChange(updatedProject);
+    showToast(isNowHidden ? 'Capa oculta en el pliego.' : 'Capa visible.');
+  }, [project, selectedElementId, commitProjectChange, showToast]);
+
   const handleUpdateProject = useCallback((updates: Partial<NewspaperProject>) => {
     const updated: NewspaperProject = {
       ...project,
@@ -207,6 +390,10 @@ export default function App() {
   // Load preset or custom template
   const handleLoadTemplate = useCallback((templateProject: NewspaperProject) => {
     const cloned = JSON.parse(JSON.stringify(templateProject));
+    if (cloned.pages && cloned.pages[0] && (!cloned.pages[0].elements || cloned.pages[0].elements.length === 0)) {
+      cloned.pages[0].elements = cloned.elements || [];
+    }
+    setActivePageIndex(0);
     commitProjectChange(cloned);
     setSelectedElementId(null);
     showToast(`Maqueta "${cloned.title}" cargada en el pliego.`);
@@ -270,6 +457,7 @@ export default function App() {
         onOpenVersions={() => setIsVersionsOpen(true)}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         onOpenPdfExport={() => setIsPdfExportOpen(true)}
+        onOpenWorkflow={() => setIsWorkflowOpen(true)}
       />
 
       {/* Main Workspace: Left Palette + Canvas + Right Inspector */}
@@ -283,6 +471,10 @@ export default function App() {
           onUpdateProject={handleUpdateProject}
           onDeleteElement={handleDeleteElement}
           onReorderElement={handleReorderElement}
+          onReorderElements={handleReorderElements}
+          onToggleLock={handleToggleLock}
+          onToggleVisibility={handleToggleVisibility}
+          onDuplicateElement={handleDuplicateElement}
         />
 
         {/* Center Artboard Canvas */}
@@ -311,6 +503,21 @@ export default function App() {
           onSendToBack={handleSendToBack}
           project={project}
         />
+
+        {/* Floating Bottom Page Navigator */}
+        {currentPages.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+            <PageNavigator
+              pages={currentPages}
+              activePageIndex={activePageIndex}
+              onSelectPage={handleSelectPage}
+              onAddPage={handleAddPage}
+              onDuplicatePage={handleDuplicatePage}
+              onDeletePage={handleDeletePage}
+              activeElementsCount={project.elements.length}
+            />
+          </div>
+        )}
       </div>
 
       {/* Real-time Notification Toast */}
@@ -343,6 +550,14 @@ export default function App() {
         isOpen={isPdfExportOpen}
         onClose={() => setIsPdfExportOpen(false)}
         project={project}
+      />
+
+      <EditorialWorkflowModal
+        isOpen={isWorkflowOpen}
+        onClose={() => setIsWorkflowOpen(false)}
+        project={project}
+        onUpdateProject={handleUpdateProject}
+        currentUser={currentUser.name}
       />
     </div>
   );

@@ -10,6 +10,68 @@ interface Props {
 export const NewspaperElementRenderer: React.FC<Props> = ({ element }) => {
   switch (element.type) {
     case 'masthead': {
+      if (element.styleVariant === 'latitud-official') {
+        return (
+          <div className="w-full h-full flex flex-col justify-between select-none pointer-events-none bg-white p-2 font-['Montserrat',sans-serif]">
+            {/* Top Bar: EDICIÓN Nº1 • SEMANA DEL 25 AL 31 DE MAYO DE 2026 */}
+            <div className="flex items-center justify-between text-[11px] font-bold text-neutral-800 border-b border-neutral-300 pb-1 uppercase tracking-wider">
+              <span>{element.editionNumber || 'EDICIÓN Nº1'} • {element.editionDate || 'SEMANA DEL 25 AL 31 DE MAYO DE 2026'}</span>
+            </div>
+
+            {/* Middle Main Brand: LATITUD [18] */}
+            <div className="flex items-center justify-between my-auto py-1">
+              <div className="flex items-center gap-2">
+                <h1
+                  className="font-black tracking-tight leading-none text-[#0B1F3A]"
+                  style={{
+                    fontFamily: element.fontFamily || "'Montserrat', sans-serif",
+                    fontSize: `${element.fontSize || 56}px`
+                  }}
+                >
+                  {element.newspaperName || 'LATITUD'}
+                </h1>
+                <div
+                  className="bg-[#D71920] text-white font-black flex items-center justify-center rounded-xs shadow-xs px-2.5 py-1"
+                  style={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: `${Math.round((element.fontSize || 56) * 0.82)}px`,
+                    lineHeight: 1
+                  }}
+                >
+                  {element.badgeNumber || '18'}
+                </div>
+              </div>
+
+              {/* Slogan underneath or alongside */}
+              <div className="text-right">
+                <div className="text-[13px] font-extrabold tracking-[0.25em] text-[#0B1F3A] uppercase">
+                  {element.motto || 'INFORMACIÓN SIN RUIDO'}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Dateline / Metadata Strip */}
+            <div className="flex items-center justify-between text-[10px] font-semibold text-neutral-700 border-t border-b border-neutral-300 py-1 uppercase tracking-wider">
+              <div className="flex items-center gap-3">
+                <span>{element.locationInfo || 'SANTA CRUZ DE LA SIERRA • BOLIVIA'}</span>
+                <span>•</span>
+                <span>{element.price || 'PRECIO BS 5'}</span>
+                <span>•</span>
+                <span>{element.section || '12 PÁGINAS'}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[#0B1F3A] font-bold lowercase tracking-normal font-mono">
+                  {element.websiteUrl || 'www.latitud18.com.bo'}
+                </span>
+                <span className="text-neutral-500 font-mono text-[9px]">
+                  {element.socialHandles || 'f  𝕏  📷  ▶'}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       if (element.styleVariant === 'regional-banner' || element.subBadgeText || element.leftEar || element.rightEar) {
         return (
           <div className="w-full h-full flex flex-col justify-between select-none pointer-events-none">

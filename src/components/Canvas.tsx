@@ -91,12 +91,12 @@ export const Canvas: React.FC<Props> = ({
 
   // Handle pointer down on an element (Drag start)
   const handleElementMouseDown = (e: React.MouseEvent, element: NewspaperElement) => {
-    if (element.locked) {
-      onSelectElement(element.id);
-      return;
-    }
     e.stopPropagation();
     onSelectElement(element.id);
+
+    if (element.locked) {
+      return;
+    }
 
     if (!artboardRef.current) return;
     const artboardRect = artboardRef.current.getBoundingClientRect();
@@ -368,6 +368,7 @@ export const Canvas: React.FC<Props> = ({
 
             {/* Render Elements */}
             {project.elements.map((element) => {
+              if (element.hidden) return null;
               const isSelected = element.id === selectedElementId;
               
               // Check if any collaborator is focusing on this element
@@ -376,9 +377,13 @@ export const Canvas: React.FC<Props> = ({
               return (
                 <div
                   key={element.id}
-                  className={`absolute group cursor-move ${
+                  className={`absolute group ${
+                    element.locked ? 'cursor-default' : 'cursor-move'
+                  } ${
                     isSelected
-                      ? 'ring-2 ring-blue-600 ring-offset-1 z-40'
+                      ? element.locked
+                        ? 'ring-2 ring-amber-500 ring-offset-1 z-40'
+                        : 'ring-2 ring-blue-600 ring-offset-1 z-40'
                       : remoteEditor
                       ? 'ring-2 ring-offset-1 z-30'
                       : 'hover:ring-1 hover:ring-blue-400/50'
@@ -408,7 +413,7 @@ export const Canvas: React.FC<Props> = ({
 
                   {/* Locked indicator badge */}
                   {element.locked && (
-                    <div className="absolute top-1 right-1 bg-neutral-800/80 text-white text-[9px] px-1 py-0.5 rounded font-mono">
+                    <div className="absolute top-1 right-1 bg-neutral-900/90 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-mono flex items-center gap-1 shadow-sm border border-amber-500/30 z-50 pointer-events-none select-none">
                       🔒 Bloqueado
                     </div>
                   )}

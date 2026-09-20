@@ -7,6 +7,18 @@ export interface FontOption {
 
 export const EDITORIAL_FONTS: FontOption[] = [
   {
+    name: 'Bebas Neue (Titulares Latitud 18)',
+    family: "'Bebas Neue', Impact, sans-serif",
+    category: 'display',
+    description: 'Tipografía oficial condensada de Latitud 18 para grandes titulares de portada'
+  },
+  {
+    name: 'Montserrat (Estilo Latitud 18)',
+    family: "'Montserrat', system-ui, sans-serif",
+    category: 'sans',
+    description: 'Tipografía geométrica editorial oficial para bajadas, textos y créditos'
+  },
+  {
     name: 'Playfair Display',
     family: "'Playfair Display', Georgia, serif",
     category: 'serif',
@@ -74,6 +86,33 @@ export interface TypographyPreset {
 }
 
 export const TYPOGRAPHY_PRESETS: TypographyPreset[] = [
+  {
+    id: 'latitud18-titular-bebas',
+    name: 'Latitud 18 - Titular Principal (Bebas Neue)',
+    fontFamily: "'Bebas Neue', Impact, sans-serif",
+    fontSize: 44,
+    lineHeight: 1.0,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase'
+  },
+  {
+    id: 'latitud18-bajada-montserrat',
+    name: 'Latitud 18 - Bajada / Subtítulo (Montserrat)',
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: 14,
+    lineHeight: 1.35,
+    letterSpacing: 0,
+    textTransform: 'none'
+  },
+  {
+    id: 'latitud18-cuerpo-montserrat',
+    name: 'Latitud 18 - Cuerpo de Artículo (Montserrat)',
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: 11,
+    lineHeight: 1.45,
+    letterSpacing: 0,
+    textAlign: 'left'
+  },
   {
     id: 'titular-catastrofe',
     name: 'Gran Titular de Portada (8 Columnas)',

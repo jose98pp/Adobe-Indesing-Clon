@@ -17,7 +17,8 @@ import {
   Ruler, 
   Magnet, 
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Globe
 } from 'lucide-react';
 
 interface Props {
@@ -45,6 +46,7 @@ interface Props {
   onOpenVersions: () => void;
   onOpenTemplates: () => void;
   onOpenPdfExport: () => void;
+  onOpenWorkflow: () => void;
 }
 
 export const Header: React.FC<Props> = ({
@@ -71,7 +73,8 @@ export const Header: React.FC<Props> = ({
   versionsCount,
   onOpenVersions,
   onOpenTemplates,
-  onOpenPdfExport
+  onOpenPdfExport,
+  onOpenWorkflow
 }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -86,20 +89,32 @@ export const Header: React.FC<Props> = ({
     }
   };
 
+  const status = project.status || 'draft';
+  const statusLabels: Record<string, { label: string; color: string }> = {
+    draft: { label: 'Borrador', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
+    review: { label: 'En Revisión', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
+    approved: { label: 'Aprobado', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+    scheduled: { label: 'Programado', color: 'bg-purple-500/20 text-purple-300 border-purple-500/40' },
+    published: { label: 'Publicado', color: 'bg-sky-500/20 text-sky-300 border-sky-500/40' }
+  };
+  const currentStatusInfo = statusLabels[status] || statusLabels.draft;
+
   return (
     <header className="h-14 bg-[#141417] border-b border-[#27272a] px-4 flex items-center justify-between text-neutral-200 select-none shrink-0 z-40">
       {/* Brand & Project Name */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 pr-3 border-r border-[#27272a]">
-          <div className="w-8 h-8 rounded bg-gradient-to-tr from-amber-600 to-red-600 flex items-center justify-center text-white shadow-sm">
-            <Newspaper className="w-4 h-4" />
+          <div className="w-8 h-8 rounded bg-[#0B1F3A] border border-[#D71920] flex items-center justify-center text-white shadow-sm font-black text-xs font-mono">
+            <span className="text-white">L</span>
+            <span className="text-[#D71920]">18</span>
           </div>
           <div>
-            <div className="font-serif font-black tracking-tight text-white leading-none text-sm">
-              PrensaStudio
+            <div className="font-['Montserrat',sans-serif] font-black tracking-tight text-white leading-none text-sm flex items-center gap-1">
+              <span>Latitud</span>
+              <span className="text-[#D71920]">18</span>
             </div>
             <div className="text-[9px] uppercase tracking-widest text-neutral-400 font-mono">
-              InDesign Web
+              Maquetador InDesign
             </div>
           </div>
         </div>
@@ -139,6 +154,16 @@ export const Header: React.FC<Props> = ({
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#242429] text-neutral-400 font-mono uppercase">
             {project.format}
           </span>
+
+          {/* Interactive Editorial Status Badge */}
+          <button
+            onClick={onOpenWorkflow}
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1.5 transition-all hover:brightness-125 shadow-xs ${currentStatusInfo.color}`}
+            title="Abrir Flujo Editorial y Publicación en latitud18.ultimahora-tv.com"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            <span>{currentStatusInfo.label}</span>
+          </button>
         </div>
       </div>
 
@@ -340,6 +365,16 @@ export const Header: React.FC<Props> = ({
               {versionsCount}
             </span>
           )}
+        </button>
+
+        {/* Editorial Workflow & Latitud18 Publishing Button */}
+        <button
+          onClick={onOpenWorkflow}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#1f1f23] hover:bg-[#282830] border border-[#2d2d34] text-xs font-medium text-amber-400 transition-colors"
+          title="Abrir panel de flujo editorial y publicación en latitud18.ultimahora-tv.com"
+        >
+          <Globe className="w-3.5 h-3.5 text-amber-400" />
+          <span className="text-white hidden sm:inline">Flujo Editorial</span>
         </button>
 
         {/* Templates Button */}

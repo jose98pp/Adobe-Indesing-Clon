@@ -31,32 +31,76 @@ export const TemplatesModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
-  // Export current project as downloadable JSON template
-  const handleExportCurrent = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(currentProject, null, 2));
+  // Export current project as downloadable JSON template or .latitud-template
+  const handleExportCurrent = (format: 'json' | 'latitud') => {
+    let content = '';
+    let filename = '';
+    
+    if (format === 'latitud') {
+      const pkg = {
+        schemaVersion: '1.0',
+        type: 'latitud-template',
+        name: currentProject.title,
+        description: 'Plantilla editorial para latitud18.ultimahora-tv.com',
+        author: 'Redacción',
+        createdAt: new Date().toISOString(),
+        targetDomain: 'latitud18.ultimahora-tv.com',
+        project: currentProject
+      };
+      content = JSON.stringify(pkg, null, 2);
+      filename = `${currentProject.title.replace(/\s+/g, '_')}.latitud-template`;
+    } else {
+      content = JSON.stringify(currentProject, null, 2);
+      filename = `Plantilla_${currentProject.title.replace(/\s+/g, '_')}.prensastudio.json`;
+    }
+
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute(
-      'download',
-      `Plantilla_${currentProject.title.replace(/\s+/g, '_')}.prensastudio.json`
-    );
+    downloadAnchor.href = url;
+    downloadAnchor.download = filename;
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+    URL.revokeObjectURL(url);
   };
 
   // Export a preset template as downloadable JSON
   const handleExportPreset = (preset: TemplatePreset) => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(preset.project, null, 2));
+    const isLatitud = preset.id.includes('latitud');
+    let content = '';
+    let filename = '';
+
+    if (isLatitud) {
+      const pkg = {
+        schemaVersion: '1.0',
+        type: 'latitud-template',
+        name: preset.name,
+        description: preset.description,
+        author: 'Latitud 18 / Última Hora TV',
+        createdAt: new Date().toISOString(),
+        targetDomain: 'latitud18.ultimahora-tv.com',
+        project: preset.project
+      };
+      content = JSON.stringify(pkg, null, 2);
+      filename = `${preset.id}.latitud-template`;
+    } else {
+      content = JSON.stringify(preset.project, null, 2);
+      filename = `Plantilla_${preset.id}.prensastudio.json`;
+    }
+
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `Plantilla_${preset.id}.prensastudio.json`);
+    downloadAnchor.href = url;
+    downloadAnchor.download = filename;
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+    URL.revokeObjectURL(url);
   };
 
-  // Import JSON file
+  // Import JSON or .latitud-template file
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -65,14 +109,21 @@ export const TemplatesModal: React.FC<Props> = ({
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
+        // Handle .latitud-template package
+        if (json.type === 'latitud-template' && json.project && Array.isArray(json.project.elements)) {
+          onImportCustomTemplate(json.project);
+          onClose();
+          return;
+        }
+        // Handle standard project format
         if (json && json.elements && Array.isArray(json.elements)) {
           onImportCustomTemplate(json);
           onClose();
-        } else {
-          alert('El archivo no contiene un formato de maqueta PrensaStudio válido.');
+          return;
         }
+        alert('El archivo no contiene un formato de maqueta PrensaStudio o .latitud-template válido.');
       } catch (err) {
-        alert('Error al leer el archivo JSON de maqueta.');
+        alert('Error al leer el archivo de maqueta. Verifique que sea un JSON válido.');
       }
     };
     reader.readAsText(file);
@@ -96,19 +147,30 @@ export const TemplatesModal: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportCurrent}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs hover:bg-emerald-600/30 transition-colors font-medium"
-              title="Descarga la maqueta abierta como archivo de plantilla JSON"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Exportar Maqueta Actual</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleExportCurrent('latitud')}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs hover:bg-amber-500/30 transition-colors font-semibold"
+                title="Descarga la maqueta en formato .latitud-template para latitud18.ultimahora-tv.com"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exportar .latitud-template</span>
+              </button>
+
+              <button
+                onClick={() => handleExportCurrent('json')}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs hover:bg-emerald-600/30 transition-colors font-medium"
+                title="Descarga la maqueta abierta como archivo de plantilla JSON"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>JSON</span>
+              </button>
+            </div>
 
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a2a32] text-neutral-200 border border-[#373744] text-xs hover:bg-[#34343e] transition-colors font-medium"
-              title="Cargar una plantilla desde tu ordenador"
+              title="Cargar una plantilla .latitud-template o JSON desde tu ordenador"
             >
               <Upload className="w-3.5 h-3.5" />
               <span>Importar Plantilla</span>
@@ -116,7 +178,7 @@ export const TemplatesModal: React.FC<Props> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json"
+              accept=".json,.latitud-template"
               onChange={handleFileImport}
               className="hidden"
             />

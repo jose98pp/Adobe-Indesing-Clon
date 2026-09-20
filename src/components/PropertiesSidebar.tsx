@@ -9,6 +9,8 @@ import {
   AlignJustify, 
   Lock, 
   Unlock, 
+  Eye,
+  EyeOff,
   Copy, 
   Trash2, 
   BringToFront, 
@@ -117,6 +119,18 @@ export const PropertiesSidebar: React.FC<Props> = ({
 
         <div className="flex items-center gap-1">
           <button
+            onClick={() => updateField('hidden', !selectedElement.hidden)}
+            className={`p-1.5 rounded transition-colors ${
+              selectedElement.hidden
+                ? 'bg-neutral-800 text-neutral-500'
+                : 'text-neutral-400 hover:text-white hover:bg-[#2c2c36]'
+            }`}
+            title={selectedElement.hidden ? 'Mostrar elemento en pliego' : 'Ocultar elemento'}
+          >
+            {selectedElement.hidden ? <EyeOff className="w-3.5 h-3.5 text-neutral-500" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
             onClick={() => updateField('locked', !selectedElement.locked)}
             className={`p-1.5 rounded transition-colors ${
               selectedElement.locked
@@ -163,6 +177,44 @@ export const PropertiesSidebar: React.FC<Props> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        {/* If locked, show advisory notice */}
+        {selectedElement.locked && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5 text-xs text-amber-300 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+              <div>
+                <div className="font-semibold leading-tight">Elemento bloqueado</div>
+                <div className="text-[10px] text-amber-400/80">Protegido contra desplazamientos accidentales en el pliego</div>
+              </div>
+            </div>
+            <button
+              onClick={() => updateField('locked', false)}
+              className="text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 px-2 py-1 rounded font-medium ml-2 shrink-0 transition-colors"
+            >
+              Desbloquear
+            </button>
+          </div>
+        )}
+
+        {/* If hidden, show notice */}
+        {selectedElement.hidden && (
+          <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-2.5 text-xs text-neutral-300 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <EyeOff className="w-4 h-4 text-neutral-400 shrink-0" />
+              <div>
+                <div className="font-semibold leading-tight">Elemento oculto</div>
+                <div className="text-[10px] text-neutral-400">No se muestra en el pliego ni en exportación</div>
+              </div>
+            </div>
+            <button
+              onClick={() => updateField('hidden', false)}
+              className="text-[10px] bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 px-2 py-1 rounded font-medium ml-2 shrink-0 transition-colors"
+            >
+              Mostrar
+            </button>
+          </div>
+        )}
+
         {/* Geometry & Position */}
         <div className="space-y-2">
           <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
@@ -525,26 +577,77 @@ export const PropertiesSidebar: React.FC<Props> = ({
         {/* SPECIFIC: MASTHEAD CONTROLS */}
         {selectedElement.type === 'masthead' && (
           <div className="space-y-3 pt-2 border-t border-[#2d2d34]">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-              Datos de la Cabecera
-            </span>
-
-            <div className="space-y-1">
-              <label className="text-xs text-neutral-400">Nombre del Periódico</label>
-              <input
-                type="text"
-                value={selectedElement.newspaperName}
-                onChange={(e) => updateField('newspaperName', e.target.value)}
-                className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-2 focus:outline-hidden font-bold"
-              />
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                Datos de la Cabecera
+              </span>
+              <span className="text-[9px] bg-red-600/20 text-red-400 font-bold px-1.5 py-0.5 rounded">
+                Latitud 18
+              </span>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-neutral-400">Lema / Subtítulo</label>
+              <label className="text-xs text-neutral-400">Estilo de Cabecera</label>
+              <select
+                value={selectedElement.styleVariant}
+                onChange={(e) => updateField('styleVariant', e.target.value)}
+                className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-2 focus:outline-hidden font-bold"
+              >
+                <option value="latitud-official">Latitud 18 Oficial (Caja Roja + Azul #0B1F3A)</option>
+                <option value="regional-banner">Tabloide Moderno con Orejas</option>
+                <option value="classic-gothic">Gótico Tradicional</option>
+                <option value="roman-editorial">Romana Clásica</option>
+                <option value="modern-condensed">Condensada</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2 space-y-1">
+                <label className="text-xs text-neutral-400">Nombre del Diario</label>
+                <input
+                  type="text"
+                  value={selectedElement.newspaperName}
+                  onChange={(e) => updateField('newspaperName', e.target.value)}
+                  className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-2 focus:outline-hidden font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-neutral-400">Número Badge</label>
+                <input
+                  type="text"
+                  value={selectedElement.badgeNumber || '18'}
+                  onChange={(e) => updateField('badgeNumber', e.target.value)}
+                  className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-2 focus:outline-hidden font-black text-center text-red-400"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-neutral-400">Lema / Slogan</label>
               <input
                 type="text"
                 value={selectedElement.motto}
                 onChange={(e) => updateField('motto', e.target.value)}
+                className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-2 focus:outline-hidden"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-neutral-400">Sitio Web / Redes</label>
+              <input
+                type="text"
+                value={selectedElement.websiteUrl || 'www.latitud18.com.bo'}
+                onChange={(e) => updateField('websiteUrl', e.target.value)}
+                className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-2 focus:outline-hidden font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-neutral-400">Ubicación y País</label>
+              <input
+                type="text"
+                value={selectedElement.locationInfo || 'SANTA CRUZ DE LA SIERRA • BOLIVIA'}
+                onChange={(e) => updateField('locationInfo', e.target.value)}
                 className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-2 focus:outline-hidden"
               />
             </div>
@@ -560,7 +663,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] text-neutral-400">Número / Año</label>
+                <label className="text-[11px] text-neutral-400">Número de Edición</label>
                 <input
                   type="text"
                   value={selectedElement.editionNumber}
@@ -581,7 +684,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] text-neutral-400">Sección</label>
+                <label className="text-[11px] text-neutral-400">Total Páginas</label>
                 <input
                   type="text"
                   value={selectedElement.section}
@@ -757,8 +860,10 @@ export const PropertiesSidebar: React.FC<Props> = ({
 
             <div className="space-y-1">
               <label className="text-xs text-neutral-400">Fondo del Cuadro</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-6 gap-1.5">
                 {[
+                  { name: 'Latitud Azul', color: '#0B1F3A' },
+                  { name: 'Rojo Latitud', color: '#D71920' },
                   { name: 'Gris Claro', color: '#f8fafc' },
                   { name: 'Rojo Alerta', color: '#fef2f2' },
                   { name: 'Salmón', color: '#fef3c7' },
@@ -766,13 +871,49 @@ export const PropertiesSidebar: React.FC<Props> = ({
                 ].map((c) => (
                   <button
                     key={c.color}
-                    onClick={() => updateField('bgColor', c.color)}
+                    onClick={() => {
+                      updateField('bgColor', c.color);
+                      if (c.color === '#0B1F3A' || c.color === '#D71920') {
+                        updateField('textColor', '#ffffff');
+                      } else if (c.color === '#ffffff' || c.color === '#f8fafc') {
+                        updateField('textColor', '#0B1F3A');
+                      }
+                    }}
+                    title={c.name}
                     className={`h-7 rounded border ${
                       selectedElement.bgColor === c.color ? 'ring-2 ring-blue-500 border-white' : 'border-neutral-700'
                     }`}
                     style={{ backgroundColor: c.color }}
                   />
                 ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-[11px] text-neutral-400">Etiqueta / Badge</label>
+                <input
+                  type="text"
+                  value={selectedElement.badgeText || ''}
+                  onChange={(e) => updateField('badgeText', e.target.value)}
+                  placeholder="Ej: PRIMICIA, EXCLUSIVO"
+                  className="w-full bg-[#282830] border border-[#373744] text-white text-xs rounded p-1.5 focus:outline-hidden uppercase"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-neutral-400">Color del Badge</label>
+                <div className="flex gap-1.5 pt-1">
+                  {['#D71920', '#0B1F3A', '#15803d', '#d97706', '#0284c7'].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => updateField('badgeBgColor', c)}
+                      className={`h-6 flex-1 rounded border ${
+                        selectedElement.badgeBgColor === c ? 'ring-2 ring-white' : 'border-neutral-700'
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </div>

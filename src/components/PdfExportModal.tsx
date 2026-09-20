@@ -83,8 +83,11 @@ export const PdfExportModal: React.FC<Props> = ({ isOpen, onClose, project }) =>
               <span className="uppercase text-amber-400">{project.format}</span>
             </div>
             <div className="flex justify-between text-neutral-400">
-              <span>Elementos vectorizados:</span>
-              <span>{project.elements.length} objetos</span>
+              <span>Elementos en pliego:</span>
+              <span>
+                {project.elements.filter((e) => !e.hidden).length} visibles
+                {project.elements.some((e) => e.hidden) && ` (${project.elements.filter((e) => e.hidden).length} ocultos)`}
+              </span>
             </div>
           </div>
 

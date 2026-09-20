@@ -17,6 +17,7 @@ export interface BaseElement {
   zIndex: number;
   rotation?: number;
   locked?: boolean;
+  hidden?: boolean;
 }
 
 export interface MastheadElement extends BaseElement {
@@ -29,10 +30,14 @@ export interface MastheadElement extends BaseElement {
   section: string;
   fontFamily: string;
   fontSize: number;
-  styleVariant: 'classic-gothic' | 'roman-editorial' | 'modern-condensed' | 'regional-banner';
+  styleVariant: 'classic-gothic' | 'roman-editorial' | 'modern-condensed' | 'regional-banner' | 'latitud-official';
   borderColor: string;
   accentColor: string;
   subBadgeText?: string;
+  badgeNumber?: string;
+  websiteUrl?: string;
+  socialHandles?: string;
+  locationInfo?: string;
   leftEar?: { title: string; subtitle: string; bgColor?: string; textColor?: string };
   rightEar?: { title: string; subtitle: string; highlight: string; bgColor?: string };
 }
@@ -132,6 +137,25 @@ export type NewspaperElement =
 
 export type PageFormat = 'broadsheet' | 'tabloid' | 'compact-a4';
 
+export type EditorialStatus = 'draft' | 'review' | 'approved' | 'scheduled' | 'published';
+
+export interface EditorialStatusLog {
+  id: string;
+  fromStatus?: EditorialStatus;
+  toStatus: EditorialStatus;
+  user: string;
+  timestamp: number;
+  comment?: string;
+}
+
+export interface EditorialPage {
+  id: string;
+  pageNumber: number;
+  title: string;
+  section: string;
+  elements: NewspaperElement[];
+}
+
 export interface PageFormatConfig {
   name: string;
   width: number;
@@ -153,6 +177,28 @@ export interface NewspaperProject {
   margin: number;
   backgroundColor: string;
   elements: NewspaperElement[];
+  // Editorial workflow & publication on latitud18.ultimahora-tv.com
+  status?: EditorialStatus;
+  assignedReviewer?: string;
+  scheduledAt?: string;
+  publishedAt?: string;
+  publishedUrl?: string;
+  statusHistory?: EditorialStatusLog[];
+  domain?: string;
+  // Multi-page editorial support
+  pages?: EditorialPage[];
+  activePageIndex?: number;
+}
+
+export interface LatitudTemplatePackage {
+  schemaVersion: '1.0';
+  type: 'latitud-template';
+  name: string;
+  description: string;
+  author: string;
+  createdAt: string;
+  targetDomain: string;
+  project: NewspaperProject;
 }
 
 export interface VersionSnapshot {
