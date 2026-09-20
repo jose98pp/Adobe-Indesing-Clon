@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { TemplatePreset, NewspaperProject } from '../types';
+import React, { useRef, useState } from 'react';
+import { TemplatePreset, NewspaperProject, ImageElement } from '../types';
 import { TEMPLATES } from '../data/templates';
 import { 
   LayoutTemplate, 
@@ -7,9 +7,13 @@ import {
   Upload, 
   Copy, 
   X, 
-  Sparkles, 
   FileCheck,
-  ArrowRight
+  ArrowRight,
+  Info,
+  FileCode,
+  Image as ImageIcon,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 interface Props {
@@ -28,8 +32,17 @@ export const TemplatesModal: React.FC<Props> = ({
   onImportCustomTemplate
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   if (!isOpen) return null;
+
+  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => {
+      setNotification(null);
+    }, 6000);
+  };
 
   // Export current project as downloadable JSON template or .latitud-template
   const handleExportCurrent = (format: 'json' | 'latitud') => {
@@ -42,7 +55,7 @@ export const TemplatesModal: React.FC<Props> = ({
         type: 'latitud-template',
         name: currentProject.title,
         description: 'Plantilla editorial para latitud18.ultimahora-tv.com',
-        author: 'Redacción',
+        author: 'Redacción PrensaStudio',
         createdAt: new Date().toISOString(),
         targetDomain: 'latitud18.ultimahora-tv.com',
         project: currentProject
@@ -63,6 +76,7 @@ export const TemplatesModal: React.FC<Props> = ({
     downloadAnchor.click();
     downloadAnchor.remove();
     URL.revokeObjectURL(url);
+    showNotification('success', `Archivo descargado: ${filename}`);
   };
 
   // Export a preset template as downloadable JSON
@@ -77,7 +91,7 @@ export const TemplatesModal: React.FC<Props> = ({
         type: 'latitud-template',
         name: preset.name,
         description: preset.description,
-        author: 'Latitud 18 / Última Hora TV',
+        author: 'Latitud 18 / PrensaStudio',
         createdAt: new Date().toISOString(),
         targetDomain: 'latitud18.ultimahora-tv.com',
         project: preset.project
@@ -98,40 +112,140 @@ export const TemplatesModal: React.FC<Props> = ({
     downloadAnchor.click();
     downloadAnchor.remove();
     URL.revokeObjectURL(url);
+    showNotification('success', `Archivo descargado: ${filename}`);
   };
 
-  // Import JSON or .latitud-template file
+  // Process imported file (JSON, .latitud-template or Image)
+  const processFile = (file: File) => {
+    const filename = file.name.toLowerCase();
+
+    // 1. Image formats (.png, .jpg, .jpeg, .webp, .svg)
+    if (file.type.startsWith('image/') || /\.(png|jpe?g|webp|svg)$/i.test(filename)) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (!dataUrl) return;
+
+        // Create an editable project with the image as a reference backdrop
+        const imageElement: ImageElement = {
+          id: `img-maqueta-${Date.now()}`,
+          type: 'image',
+          x: 0,
+          y: 0,
+          width: currentProject.width,
+          height: currentProject.height,
+          zIndex: 1,
+          url: dataUrl,
+          caption: `Maqueta de referencia: ${file.name}`,
+          credit: 'Boceto / Maqueta Visual',
+          objectFit: 'contain',
+          grayscale: false,
+          borderWidth: 0,
+          borderColor: '#000000',
+          aspectRatioLock: true,
+          locked: false
+        };
+
+        const newProject: NewspaperProject = {
+          ...currentProject,
+          id: `project-${Date.now()}`,
+          title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+          elements: [imageElement]
+        };
+
+        onImportCustomTemplate(newProject);
+        onClose();
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    // 2. Structured formats (.json, .latitud-template)
+    if (filename.endsWith('.json') || filename.endsWith('.latitud-template') || file.type.includes('json')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+          
+          // Handle .latitud-template package
+          if (json.type === 'latitud-template' && json.project) {
+            onImportCustomTemplate(json.project);
+            onClose();
+            return;
+          }
+          
+          // Handle standard project format with elements
+          if (json && Array.isArray(json.elements)) {
+            onImportCustomTemplate(json);
+            onClose();
+            return;
+          }
+
+          // Handle project with pages
+          if (json && Array.isArray(json.pages) && json.pages.length > 0 && Array.isArray(json.pages[0].elements)) {
+            const reconstructed = {
+              ...json,
+              elements: json.pages[0].elements
+            };
+            onImportCustomTemplate(reconstructed);
+            onClose();
+            return;
+          }
+
+          showNotification(
+            'error',
+            'El archivo JSON no tiene la estructura de maqueta esperada (debe contener la lista de elementos o páginas).'
+          );
+        } catch {
+          showNotification('error', 'El archivo no es un JSON válido. Compruebe su formato de texto.');
+        }
+      };
+      reader.readAsText(file);
+      return;
+    }
+
+    // 3. Fallback warning for unsupported extensions
+    showNotification(
+      'error',
+      `El archivo "${file.name}" no es compatible. Las maquetas deben ser archivos .json o .latitud-template (maqueta editable) o bien imágenes .png, .jpg o .webp (boceto visual).`
+    );
+  };
+
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    processFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        // Handle .latitud-template package
-        if (json.type === 'latitud-template' && json.project && Array.isArray(json.project.elements)) {
-          onImportCustomTemplate(json.project);
-          onClose();
-          return;
-        }
-        // Handle standard project format
-        if (json && json.elements && Array.isArray(json.elements)) {
-          onImportCustomTemplate(json);
-          onClose();
-          return;
-        }
-        alert('El archivo no contiene un formato de maqueta PrensaStudio o .latitud-template válido.');
-      } catch (err) {
-        alert('Error al leer el archivo de maqueta. Verifique que sea un JSON válido.');
-      }
-    };
-    reader.readAsText(file);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 p-4 select-none animate-in fade-in duration-150">
-      <div className="bg-[#1f1f23] border border-[#373744] rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden text-neutral-200">
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center z-50 p-4 select-none animate-in fade-in duration-150">
+      <div 
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`bg-[#1f1f23] border ${
+          isDragging ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-[#373744]'
+        } rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden text-neutral-200 transition-all`}
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#2d2d34] bg-[#18181b]">
           <div className="flex items-center gap-2.5">
@@ -139,9 +253,9 @@ export const TemplatesModal: React.FC<Props> = ({
               <LayoutTemplate className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-white">Catálogo de Maquetas y Plantillas</h2>
+              <h2 className="text-sm font-semibold text-white">Catálogo y Gestión de Maquetas</h2>
               <p className="text-[11px] text-neutral-400">
-                Selecciona una maqueta prediseñada, cópiala para editarla o exporta tus propios diseños en formato reutilizable.
+                Abre maquetas prediseñadas, importa tus archivos o descarga la edición abierta en formato reutilizable.
               </p>
             </div>
           </div>
@@ -151,7 +265,7 @@ export const TemplatesModal: React.FC<Props> = ({
               <button
                 onClick={() => handleExportCurrent('latitud')}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs hover:bg-amber-500/30 transition-colors font-semibold"
-                title="Descarga la maqueta en formato .latitud-template para latitud18.ultimahora-tv.com"
+                title="Descarga la maqueta en formato .latitud-template para el CMS"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar .latitud-template</span>
@@ -169,25 +283,71 @@ export const TemplatesModal: React.FC<Props> = ({
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a2a32] text-neutral-200 border border-[#373744] text-xs hover:bg-[#34343e] transition-colors font-medium"
-              title="Cargar una plantilla .latitud-template o JSON desde tu ordenador"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-500 transition-colors font-semibold shadow-xs"
+              title="Subir archivo de maqueta (.json, .latitud-template o imagen .png/.jpg)"
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>Importar Plantilla</span>
+              <span>Subir Maqueta</span>
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,.latitud-template"
+              accept=".json,.latitud-template,.png,.jpg,.jpeg,.webp,.svg"
               onChange={handleFileImport}
               className="hidden"
             />
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-[#2d2d34] transition-colors ml-2"
+              className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-[#2d2d34] transition-colors ml-1"
             >
               <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Notification Banner */}
+        {notification && (
+          <div className={`px-6 py-2.5 text-xs flex items-center gap-2 border-b ${
+            notification.type === 'success' 
+              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+              : notification.type === 'error'
+              ? 'bg-red-500/15 border-red-500/30 text-red-300'
+              : 'bg-blue-500/15 border-blue-500/30 text-blue-300'
+          }`}>
+            {notification.type === 'success' && <CheckCircle2 className="w-4 h-4 shrink-0" />}
+            {notification.type === 'error' && <AlertCircle className="w-4 h-4 shrink-0" />}
+            {notification.type === 'info' && <Info className="w-4 h-4 shrink-0" />}
+            <span>{notification.message}</span>
+          </div>
+        )}
+
+        {/* Formats Explanation Banner */}
+        <div className="bg-[#18181f] px-6 py-3 border-b border-[#2d2d38] text-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="space-y-1">
+              <span className="font-semibold text-neutral-200 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-sky-400" />
+                ¿En qué formato deben subirse las maquetas?
+              </span>
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
+                <span className="inline-flex items-center gap-1 text-sky-300 bg-sky-950/60 px-2 py-0.5 rounded border border-sky-500/30">
+                  <FileCode className="w-3 h-3 text-sky-400" />
+                  <strong>.JSON / .latitud-template</strong> (Maqueta 100% editable con capas, textos y fuentes)
+                </span>
+                <span className="inline-flex items-center gap-1 text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30">
+                  <ImageIcon className="w-3 h-3 text-amber-400" />
+                  <strong>.PNG / .JPG / .WEBP</strong> (Boceto o escaneo visual para usar de guía o pliego)
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleExportPreset(TEMPLATES[0])}
+              className="text-[11px] text-sky-400 hover:text-sky-300 underline underline-offset-2 flex items-center gap-1 shrink-0"
+            >
+              <Download className="w-3 h-3" />
+              <span>Descargar maqueta de ejemplo</span>
             </button>
           </div>
         </div>
@@ -243,7 +403,6 @@ export const TemplatesModal: React.FC<Props> = ({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
-                        // Duplicate with new ID
                         const clone = JSON.parse(JSON.stringify(tpl.project));
                         clone.id = `project-${Date.now()}`;
                         clone.title = `${tpl.project.title} (Copia)`;

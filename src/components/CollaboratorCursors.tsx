@@ -8,7 +8,7 @@ interface Props {
 
 export const CollaboratorCursors: React.FC<Props> = ({ collaborators }) => {
   return (
-    <div className="absolute inset-0 pointer-events-none z-50 overflow-visible">
+    <div data-cursor="collaborator" className="absolute inset-0 pointer-events-none z-50 overflow-visible">
       {collaborators.map((collab) => {
         if (!collab.cursor) return null;
         return (
